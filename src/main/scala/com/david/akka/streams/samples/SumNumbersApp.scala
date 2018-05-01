@@ -1,7 +1,6 @@
 package com.david.akka.streams.samples
 
 import akka.actor.ActorSystem
-import com.david.akka.streams.samples.FactorialApp.system
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global

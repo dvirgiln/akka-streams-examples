@@ -1,8 +1,6 @@
 package com.david.akka.streams.samples
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
-import com.david.akka.streams.samples.SumNumbersApp.{sum, sum2, system}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
