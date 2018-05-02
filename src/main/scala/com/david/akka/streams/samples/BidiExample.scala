@@ -1,29 +1,21 @@
-package com.david.akka.streams.samples.bidi
+package com.david.akka.streams.samples
 
-import akka.util.ByteString
-import akka.stream.scaladsl.BidiFlow
-import akka.stream.scaladsl.Flow
-import akka.stream.{ActorMaterializer, BidiShape}
 import java.nio.ByteOrder
 
-import akka.stream.scaladsl.Source
-import akka.stream.scaladsl.Sink
-
-import scala.concurrent.Await
-import akka.actor.ActorSystem
+import akka.NotUsed
 import akka.stream.stage.{GraphStage, GraphStageLogic, InHandler, OutHandler}
+import akka.util.ByteString
 
-object ProtocolStacker extends App {
+trait Message
+case class Ping(id: Int) extends Message
+case class Pong(id: Int) extends Message
+
+
+object BidiExample{
   import akka.stream._
   import akka.stream.scaladsl._
-  implicit val system = ActorSystem("QuickStart")
-  implicit val materializer = ActorMaterializer()
 
-  trait Message
-  case class Ping(id: Int) extends Message
-  case class Pong(id: Int) extends Message
-
-  def toBytes(msg: Message): ByteString = {
+  private def toBytes(msg: Message): ByteString = {
     implicit val order = ByteOrder.LITTLE_ENDIAN
     msg match {
       case Ping(id) => ByteString.newBuilder.putByte(1).putInt(id).result()
@@ -31,7 +23,7 @@ object ProtocolStacker extends App {
     }
   }
 
-  def fromBytes(bytes: ByteString): Message = {
+  private def fromBytes(bytes: ByteString): Message = {
     implicit val order = ByteOrder.LITTLE_ENDIAN
     val it = bytes.iterator
     val initial = it.getByte
@@ -44,9 +36,9 @@ object ProtocolStacker extends App {
 
 
   // this is the same as the above
-  val codec = BidiFlow.fromFunctions(toBytes _, fromBytes _)
+  private val codec = BidiFlow.fromFunctions(toBytes _, fromBytes _)
 
-  val framing = BidiFlow.fromGraph(GraphDSL.create() { b ⇒
+  private val framing = BidiFlow.fromGraph(GraphDSL.create() { b ⇒
     implicit val order = ByteOrder.LITTLE_ENDIAN
 
     def addLengthHeader(bytes: ByteString) = {
@@ -68,13 +60,14 @@ object ProtocolStacker extends App {
         // this holds the current message length or -1 if at a boundary
         var needed = -1
 
+        //THe sink, in this case the output is doing pull of the source
         setHandler(out, new OutHandler {
           override def onPull(): Unit = {
             if (isClosed(in)) run()
             else pull(in)
           }
         })
-
+        //the source(in) when receive pull then try to push
         setHandler(in, new InHandler {
           override def onPush(): Unit = {
             val bytes = grab(in)
@@ -126,26 +119,25 @@ object ProtocolStacker extends App {
 
 
 
-  import scala.concurrent.duration._
+  def getBidiFlow: Flow[Message,Message,NotUsed] = {
 
-  /* construct protocol stack
-   *         +------------------------------------+
-   *         | stack                              |
-   *         |                                    |
-   *         |  +-------+            +---------+  |
-   *    ~>   O~~o       |     ~>     |         o~~O    ~>
-   * Message |  | codec | ByteString | framing |  | ByteString
-   *    <~   O~~o       |     <~     |         o~~O    <~
-   *         |  +-------+            +---------+  |
-   *         +------------------------------------+
-   */
-  val stack = codec.atop(framing)
+    /* construct protocol stack
+ *         +------------------------------------+
+ *         | stack                              |
+ *         |                                    |
+ *         |  +-------+            +---------+  |
+ *    ~>   O~~o       |     ~>     |         o~~O    ~>
+ * Message |  | codec | ByteString | framing |  | ByteString
+ *    <~   O~~o       |     <~     |         o~~O    <~
+ *         |  +-------+            +---------+  |
+ *         +------------------------------------+
+ */
+    val stack = codec.atop(framing)
 
-  // test it by plugging it into its own inverse and closing the right end
-  val pingpong = Flow[Message].collect { case Ping(id) ⇒ Pong(id) }
-  val flow = stack.atop(stack.reversed).join(pingpong)
-  val result = Source((0 to 9).map(Ping)).via(flow).limit(20).runWith(Sink.seq)
-  val result1= Await.result(result, 1.second)
-  result1.foreach(println)
+    // test it by plugging it into its own inverse and closing the right end
+    val pingpong = Flow[Message].collect { case Ping(id) ⇒ Pong(id) }
+    val flow = stack.atop(stack.reversed).join(pingpong)
+    flow
+  }
 
 }

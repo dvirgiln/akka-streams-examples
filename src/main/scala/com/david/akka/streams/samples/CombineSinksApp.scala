@@ -2,9 +2,6 @@ package com.david.akka.streams.samples
 
 import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props}
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
-
 
 
 object CombineSinksApp extends App {

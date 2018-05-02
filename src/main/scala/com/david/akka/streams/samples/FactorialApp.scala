@@ -1,10 +1,13 @@
 package com.david.akka.streams.samples
-import akka.{ NotUsed, Done }
+
+import java.nio.file.Paths
+
+import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.util.ByteString
+
 import scala.concurrent._
 import scala.concurrent.duration._
-import java.nio.file.Paths
 object FactorialApp extends App {
   println("beginning")
 

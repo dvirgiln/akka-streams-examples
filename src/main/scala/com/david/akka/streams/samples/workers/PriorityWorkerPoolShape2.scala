@@ -1,7 +1,7 @@
 package com.david.akka.streams.samples.workers
 
 import akka.stream.FanInShape
-import akka.stream.FanInShape.{Init, Name}
+import akka.stream.FanInShape.Init
 
 case class PriorityWorkerPoolShape2[In, Out](_init: FanInShape.Init[Out])
   extends FanInShape[Out](_init) {
